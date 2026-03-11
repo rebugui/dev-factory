@@ -30,7 +30,7 @@ discovery:
 
 correction:
   max_retries: 3
-  test_timeout_seconds: 30
+  test_timeout_seconds: 60
   acp_mode: "direct"          # "direct" | "cli" | "manual"
 
 orchestration:
@@ -47,7 +47,7 @@ orchestration:
     - unexpected_error
 
 notion:
-  database_id: "${PROJECT_DATABASE_ID}"
+  database_id: "2fc6e4a4-bd20-8041-a77b-fad0f48390ce"
   max_queue_per_run: 10
   rate_limit_seconds: 0.5
   enable_sync: true

@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List, Dict, Optional
 
-from builder.models import ProjectIdea, BuildResult, PipelineStage, DiscoverySource
+from builder.models import ProjectIdea, BuildResult, PipelineStage, DiscoverySource, PipelineState
 from builder.discovery.github_trending import GitHubTrendingSource
 from builder.discovery.cve_database import CVEDatabaseSource
 from builder.discovery.security_news import SecurityNewsSource
@@ -193,26 +193,3 @@ class BuilderPipeline:
             return {'success': False, 'output': str(e)}
 
 
-class PipelineState:
-    """파이프라인 상태 관리"""
-
-    def __init__(self):
-        self.stage = "idle"
-        self.current_project: Optional[str] = None
-        self.started_at: Optional[str] = None
-        self.last_checkpoint: Optional[str] = None
-        self.errors: List[str] = []
-
-    def set_stage(self, stage: str):
-        """스테이지 변경"""
-        self.stage = stage
-        self.last_checkpoint = time.time()
-
-    def to_dict(self) -> Dict:
-        """딕셔너리 변환"""
-        return {
-            'stage': self.stage,
-            'current_project': self.current_project,
-            'last_checkpoint': self.last_checkpoint,
-            'errors': self.errors
-        }

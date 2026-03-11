@@ -25,7 +25,9 @@ class NotionSync:
 
     def _load_token(self) -> Optional[str]:
         """.env 파일에서 Notion API 토큰 로드"""
-        env_file = Path.home() / '.openclaw' / 'workspace' / '.env'
+        import os
+        workspace = os.getenv("OPENCLAW_WORKSPACE", str(Path.home() / ".openclaw" / "workspace"))
+        env_file = Path(workspace) / ".env"
         if env_file.exists():
             for line in env_file.read_text().splitlines():
                 if line.startswith('NOTION_API_KEY='):
@@ -396,7 +398,7 @@ cat report.json | jq '.vulnerabilities'
 *자동 생성됨: Builder Agent v5.0*
 *생성 일시: {self._get_timestamp()}*
 """
-        return spec[:2000]  # Notion 제한
+        return spec
 
     def _generate_security_news_spec(self, idea: Dict) -> str:
         """Security News 기반 프로젝트 스펙"""
@@ -496,7 +498,7 @@ pip install {keyword.lower().replace(' ', '_')}_detector
 *자동 생성됨: Builder Agent v5.0*
 *생성 일시: {self._get_timestamp()}*
 """
-        return spec[:2000]
+        return spec
 
     def _generate_github_spec(self, idea: Dict) -> str:
         """GitHub Trending 기반 프로젝트 스펙"""
@@ -585,7 +587,7 @@ project_name/
 *자동 생성됨: Builder Agent v5.0*
 *생성 일시: {self._get_timestamp()}*
 """
-        return spec[:2000]
+        return spec
 
     def _generate_generic_spec(self, idea: Dict) -> str:
         """일반 프로젝트 스펙"""
@@ -644,7 +646,7 @@ project/
 *자동 생성됨: Builder Agent v5.0*
 *생성 일시: {self._get_timestamp()}*
 """
-        return spec[:2000]
+        return spec
 
     def _map_category(self, source: str) -> str:
         """출처별 카테고리 매핑"""

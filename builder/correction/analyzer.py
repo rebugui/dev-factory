@@ -47,10 +47,17 @@ class ErrorAnalyzer:
         return 'unknown'
 
     def _extract_location(self, output: str) -> Tuple[Optional[str], Optional[int]]:
-        """에러 위치 추출"""
-        match = re.search(r'File "([^"]+)", line (\d+)', output)
-        if match:
-            return match.group(1), int(match.group(2))
+        """에러 위치 추출 (우선순위순 패턴 리스트)"""
+        patterns = [
+            # 표준 CPython: File "path", line N [, in func]
+            r'\s*File "([^"]+)", line (\d+)',
+            # 짧은 형식: path:N: message
+            r'([\w./\\-]+\.py):(\d+):',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, output)
+            if match:
+                return match.group(1), int(match.group(2))
         return None, None
 
     def _extract_details(self, error_type: str, output: str) -> Dict:

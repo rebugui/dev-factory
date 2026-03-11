@@ -387,7 +387,9 @@ class DiscoveryLayer:
         """Notion API 토큰 가져오기"""
         
         # .env 파일에서 읽기
-        env_file = Path.home() / '.openclaw' / 'workspace' / '.env'
+        import os
+        _workspace = os.getenv("OPENCLAW_WORKSPACE", str(Path.home() / ".openclaw" / "workspace"))
+        env_file = Path(_workspace) / ".env"
         
         if env_file.exists():
             with open(env_file, 'r') as f:

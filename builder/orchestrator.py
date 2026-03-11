@@ -51,18 +51,86 @@ class HybridOrchestrator:
 
     def _develop_via_glm(self, project: ProjectIdea, project_path: Path) -> BuildResult:
         """GLM API로 직접 코드 생성 (Simple 프로젝트)"""
+        import urllib.request
+        import json
+
         logger.info("Using GLM API for simple project: %s", project.title)
 
-        # 현재는 준비만 하고 실제 구현은 Sprint 3
-        # GLM API를 호출하여 코드를 생성하고 파일에 저장
+        if not self.glm_api_key:
+            logger.warning("GLM API key not configured")
+            return BuildResult(
+                success=False,
+                project_path=str(project_path),
+                retry_count=1,
+                mode="glm",
+                test_output="GLM API key not configured"
+            )
 
-        return BuildResult(
-            success=False,
-            project_path=str(project_path),
-            retry_count=1,
-            mode="glm",
-            test_output="GLM integration planned for Sprint 3"
-        )
+        try:
+            prompt = self._generate_development_prompt(project)
+            data = {
+                "model": "glm-4",
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.3,
+            }
+
+            req = urllib.request.Request(
+                "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+                data=json.dumps(data).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {self.glm_api_key}",
+                    "Content-Type": "application/json",
+                },
+            )
+
+            with urllib.request.urlopen(req, timeout=60) as response:
+                result = json.loads(response.read().decode())
+                content = result["choices"][0]["message"]["content"]
+
+            code = self._extract_code_block(content)
+            project_path.mkdir(parents=True, exist_ok=True)
+            (project_path / "main.py").write_text(code)
+
+            logger.info("GLM API development completed for: %s", project.title)
+            return BuildResult(
+                success=True,
+                project_path=str(project_path),
+                retry_count=1,
+                mode="glm",
+                test_output=content[:200],
+            )
+
+        except urllib.error.HTTPError as e:
+            logger.warning("GLM API HTTP error: %s", e.code)
+            return BuildResult(
+                success=False,
+                project_path=str(project_path),
+                retry_count=1,
+                mode="glm",
+                test_output=f"HTTP error: {e.code}",
+            )
+        except Exception as e:
+            logger.warning("GLM API error: %s", e)
+            return BuildResult(
+                success=False,
+                project_path=str(project_path),
+                retry_count=1,
+                mode="glm",
+                test_output=str(e),
+            )
+
+    def _extract_code_block(self, content: str) -> str:
+        """응답에서 코드 블록 추출"""
+        if "```" in content:
+            parts = content.split("```")
+            if len(parts) >= 3:
+                code = parts[1]
+                if code.startswith("python\n"):
+                    code = code[7:]
+                elif code.startswith("python"):
+                    code = code[6:]
+                return code.strip()
+        return content.strip()
 
     def _fix_via_glm(self, error: Dict, project_path: Path) -> bool:
         """GLM API로 에러 수정"""
@@ -195,15 +263,6 @@ After fixing, run tests to verify."""
         except Exception as e:
             logger.error("Claude Code fix error: %s, falling back to GLM-5", str(e))
             return self._fix_via_glm(error, project_path)
-
-            if result.returncode == 0:
-                logger.info("Claude Code fix completed")
-                return True
-
-        except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-            logger.warning("Claude Code fix failed: %s", e)
-
-        return False
 
     # ──────────────────────────────────────────────
     # 프롬프트 생성

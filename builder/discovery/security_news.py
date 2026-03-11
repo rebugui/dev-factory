@@ -1,6 +1,11 @@
-"""Security News 발굴 (Sprint 3에서 brave-search로 업그레이드 예정)"""
+"""Security News 발굴 (Brave Search API via HTTP)"""
 
+import os
+import json
 import logging
+import urllib.request
+import urllib.parse
+import urllib.error
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict
@@ -24,6 +29,7 @@ class SecurityNewsSource(DiscoverySource):
             'ransomware', 'vulnerability', 'malware', 'phishing',
             'zero-day', 'supply-chain'
         ]
+        self.brave_api_key = os.environ.get('BRAVE_API_KEY')
         self.brave_search_path = None
         self._init_brave_search()
 
@@ -39,12 +45,67 @@ class SecurityNewsSource(DiscoverySource):
         if not self.enabled:
             return []
 
-        # Sprint 3: brave-search가 있으면 실제 검색 사용
+        # HTTP API 직접 호출 (BRAVE_API_KEY가 있을 때)
+        if self.brave_api_key:
+            results = self._discover_via_http()
+            if results:
+                return results
+
+        # node.js brave-search 스킬 사용 (설치된 경우)
         if self.brave_search_path:
             return self._discover_via_brave()
 
-        # Sprint 1: 키워드 기반 시뮬레이션
+        # fallback: 키워드 기반 시뮬레이션
         return self._discover_simulation()
+
+    def _discover_via_http(self) -> List[Dict]:
+        """Brave Search API를 urllib로 직접 호출"""
+        ideas = []
+        seen_urls = set()
+
+        for keyword in self.keywords[:3]:
+            try:
+                query = urllib.parse.urlencode({
+                    'q': f'{keyword} security tool 2026',
+                    'count': '3',
+                })
+                url = f"https://api.search.brave.com/res/v1/web/search?{query}"
+                req = urllib.request.Request(
+                    url,
+                    headers={
+                        'Accept': 'application/json',
+                        'X-Subscription-Token': self.brave_api_key or '',
+                    },
+                )
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    data = json.loads(response.read().decode())
+
+                results = data.get('web', {}).get('results', [])
+                for r in results:
+                    article_url = r.get('url', '')
+                    if article_url in seen_urls:
+                        continue
+                    seen_urls.add(article_url)
+                    ideas.append({
+                        'title': f"Security Tool: {keyword.replace('-', ' ').title()} Analyzer",
+                        'description': r.get('description', f'Tool to detect and analyze {keyword} threats'),
+                        'source': DS.SECURITY_NEWS.value,
+                        'keyword': keyword,
+                        'url': article_url or None,
+                        'complexity': 'medium',
+                        'priority': 'medium',
+                        'tech_stack': ['python'],
+                        'discovered_at': datetime.now().isoformat(),
+                    })
+
+            except urllib.error.URLError as e:
+                logger.debug("HTTP search network error for %s: %s", keyword, e)
+            except Exception as e:
+                logger.debug("HTTP search error for %s: %s", keyword, e)
+
+        if ideas:
+            logger.info("Security News (HTTP API): %d ideas", len(ideas))
+        return ideas
 
     def _discover_simulation(self) -> List[Dict]:
         """키워드 기반 시뮬레이션 (임시 구현)"""

@@ -262,11 +262,16 @@ Return ONLY the fixed Python code, no explanations.
 
         file_content = file_path.read_text()
 
+        try:
+            rel_path = file_path.relative_to(project_path)
+        except ValueError:
+            rel_path = file_path  # fallback: 절대 경로 사용
+
         prompt = f"""Fix the following error in this project:
 
 Error Type: {error.get('type')}
 Error Details: {error.get('raw_output', '')[:500]}
-File: {file_path.relative_to(project_path)}
+File: {rel_path}
 Line: {error.get('line_number', '?')}
 
 Analyze the error, identify the root cause, and apply the minimal fix.
