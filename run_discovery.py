@@ -39,14 +39,22 @@ def main():
 
     start_time = time.time()
 
-    # 파이프라인 초기화
-    pipeline = BuilderPipeline(config)
+    # 파이프라인 초기화 (새로운 기능들 활성화)
+    use_adaptive = config.features.get('adaptive_scoring', True) if hasattr(config, 'features') else True
+    pipeline = BuilderPipeline(config, use_adaptive_scoring=use_adaptive)
 
-    # Discovery 실행
-    result = pipeline.run_discovery_pipeline()
+    # Discovery 실행 (재개 지원)
+    resume = config.features.get('checkpoint_resume', True) if hasattr(config, 'features') else False
+    result = pipeline.run_discovery_pipeline(resume=resume)
 
     elapsed = time.time() - start_time
     logger.info("Total elapsed: %.1fs", elapsed)
+
+    # 점수 시스템 인사이트 출력 (적응형 사용 시)
+    if use_adaptive:
+        insights = pipeline.get_scoring_insights()
+        if insights.get('adaptive_scoring'):
+            logger.info("Scoring Insights: %s", insights)
 
     # Notion 큐 등록
     notion_db_id = config.notion.database_id

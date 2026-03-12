@@ -1,10 +1,15 @@
-"""GitHub Trending 발굴 (GitHub API)"""
+"""GitHub Trending 발굴 (GitHub API)
 
+Phase 1: 기본 검색
+Phase 2: 실제 메트릭 수집 (stars, forks, issues)
+"""
+
+import json
 import logging
 import subprocess
 import re
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from builder.discovery.base import DiscoverySource
 from builder.models import DiscoverySource as DS
@@ -32,7 +37,7 @@ class GitHubTrendingSource(DiscoverySource):
             return self._discover_via_browser()
 
     def _discover_via_api(self) -> List[Dict]:
-        """GitHub Search API 사용 (권장)"""
+        """GitHub Search API 사용 (실제 메트릭 수집)"""
         ideas = []
 
         try:
@@ -40,7 +45,7 @@ class GitHubTrendingSource(DiscoverySource):
             result = subprocess.run([
                 'gh', 'api',
                 '/search/repositories',
-                '-q', '.items[] | {name, full_name, description, stargazers_count, language}',
+                '-q', '.items[] | {name, full_name, description, stargazers_count, forks_count, open_issues_count, language, subscribers_count}',
                 '-f', f'q=language:{self.language} stars:>10 pushed:>2026-01-01',
                 '-f', 'sort=stars',
                 '-f', 'order=desc',
@@ -52,7 +57,6 @@ class GitHubTrendingSource(DiscoverySource):
                 return self._discover_via_browser()
 
             # JSON 파싱
-            import json
             repos = json.loads(result.stdout)
 
             for repo in repos[:self.max_results]:
@@ -60,11 +64,15 @@ class GitHubTrendingSource(DiscoverySource):
                 full_name = repo.get('full_name', '')
                 description = repo.get('description', '')
                 stars = repo.get('stargazers_count', 0)
+                forks = repo.get('forks_count', 0)
+                issues = repo.get('open_issues_count', 0)
+                subscribers = repo.get('subscribers_count', 0)
 
                 # /pricing, /sponsors 등 비-repo 경로 필터링
                 if '/' in name and not full_name.startswith(name):
                     continue
 
+                # 실제 메트릭을 포함한 아이디어 생성
                 ideas.append({
                     'title': f"GitHub: {full_name}",
                     'description': description or f"Popular Python repo with {stars} stars",
@@ -73,10 +81,17 @@ class GitHubTrendingSource(DiscoverySource):
                     'complexity': 'medium',
                     'priority': 'high' if stars > 1000 else 'medium',
                     'tech_stack': ['python'],
-                    'discovered_at': datetime.now().isoformat()
+                    'discovered_at': datetime.now().isoformat(),
+                    # 실제 메트릭 (AdaptiveIdeaScorer에서 사용)
+                    'github_metrics': {
+                        'stars': stars,
+                        'forks': forks,
+                        'issues': issues,
+                        'subscribers': subscribers
+                    }
                 })
 
-            logger.info("GitHub API: %d ideas found", len(ideas))
+            logger.info("GitHub API: %d ideas found (with metrics)", len(ideas))
 
         except subprocess.TimeoutExpired:
             logger.warning("GitHub API timeout")

@@ -16,6 +16,19 @@ except ImportError:
 
 
 @dataclass
+class FeaturesConfig:
+    """Feature Flags 설정"""
+    adaptive_scoring: bool = True
+    checkpoint_resume: bool = True
+    coverage_validation: bool = True
+    spec_validation: bool = True
+    dynamic_templates: bool = True
+    parallel_builds: bool = False
+    multi_agent: bool = False
+    continuous_learning: bool = True
+
+
+@dataclass
 class GithubDiscoveryConfig:
     enabled: bool = True
     method: str = "browser"
@@ -85,6 +98,8 @@ class Config:
     orchestration: OrchestrationConfig = field(default_factory=OrchestrationConfig)
     notion: NotionConfig = field(default_factory=NotionConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
+    features: FeaturesConfig = field(default_factory=FeaturesConfig)
+    github: GithubDiscoveryConfig = field(default_factory=GithubDiscoveryConfig)  # Legacy support
 
 
 def _resolve_env_vars(value: str) -> str:
@@ -175,6 +190,8 @@ def load_config(config_path: Optional[str] = None) -> Config:
         config.notion = _dict_to_dataclass(NotionConfig, resolved['notion'])
     if 'logging' in resolved:
         config.logging = _dict_to_dataclass(LoggingConfig, resolved['logging'])
+    if 'features' in resolved:
+        config.features = _dict_to_dataclass(FeaturesConfig, resolved['features'])
 
     return config
 

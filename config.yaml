@@ -1,5 +1,16 @@
-# Builder Agent Configuration
+# Builder Agent Configuration (Enhanced v6.0)
 # 환경 변수는 ${VAR_NAME} 형식으로 참조
+
+# Feature Flags
+features:
+  adaptive_scoring: true        # 적응형 다차원 점수 시스템 사용
+  checkpoint_resume: true       # 체크포인트 및 재개 기능 사용
+  coverage_validation: true     # 테스트 커버리지 검증 사용 (80%+)
+  spec_validation: true         # 스펙 품질 검증 사용
+  dynamic_templates: true       # 동적 스펙 템플릿 사용
+  parallel_builds: false        # 병렬 빌드 처리 (P2 - 개발 중)
+  multi_agent: false            # 멀티에이전트 협업 (P2 - 개발 중)
+  continuous_learning: true     # 지속적 학습 시스템 사용
 
 discovery:
   output_dir: "/tmp/builder-discovery"
