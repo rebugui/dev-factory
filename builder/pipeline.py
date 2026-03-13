@@ -44,8 +44,13 @@ class BuilderPipeline:
         """
         self.config = config
 
+        # State (먼저 설정)
+        self.state = PipelineState()
+        self.output_dir = Path(config.discovery.output_dir) if config else Path("/tmp/builder-discovery")
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
         # Discovery
-        cache_dir = Path(config.discovery.output_dir) / "cache" if config else Path("/tmp/builder-discovery/cache")
+        cache_dir = self.output_dir / "cache"
         self.cache = DiscoveryCache(cache_dir, ttl_seconds=config.discovery.cache_ttl_seconds if config else 3600)
 
         self.sources = [
@@ -54,7 +59,7 @@ class BuilderPipeline:
             SecurityNewsSource(config.discovery.security_news if config else None),
         ]
 
-        # 점수 시스템 선택
+        # 점수 시스템 선택 (이제 output_dir이 설정됨)
         if use_adaptive_scoring:
             feedback_path = self.output_dir / "feedback_history.json"
             self.scorer = AdaptiveIdeaScorer(feedback_history_path=feedback_path)
@@ -67,11 +72,6 @@ class BuilderPipeline:
         self.orchestrator = HybridOrchestrator(config)
         self.analyzer = ErrorAnalyzer()
         self.fixer = CodeFixer()
-
-        # State
-        self.state = PipelineState()
-        self.output_dir = Path(config.discovery.output_dir) if config else Path("/tmp/builder-discovery")
-        self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Checkpoint
         checkpoint_dir = self.output_dir / "checkpoints"
