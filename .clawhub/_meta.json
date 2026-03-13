@@ -1,0 +1,26 @@
+{
+  "name": "dev-factory",
+  "version": "1.0.0",
+  "description": "Symphony-style automated development factory using GLM-5. Discovers project ideas from GitHub Trending, CVE databases, and security news → builds complete, tested Python projects → publishes to GitHub and tracks progress in Notion. Self-correction loop (error → fix → retry, max 3 times). Use when you want to automate development, create security tools, or generate DevOps utilities.",
+  "author": "rebugui",
+  "license": "MIT",
+  "repository": "https://github.com/rebugui/dev-factory",
+  "keywords": [
+    "automation",
+    "development",
+    "symphony",
+    "glm-5",
+    "security",
+    "devops",
+    "python",
+    "notion",
+    "github"
+  ],
+  "dependencies": [],
+  "config": {
+    "requiresEnv": [
+      "NOTION_API_KEY",
+      "GLM_API_KEY"
+    ]
+  }
+}
