@@ -2,8 +2,10 @@
 
 Phase 1: Basic pipeline orchestration
 Phase 2: Checkpoint and resume functionality
+Phase 3: Async support for Symphony orchestration
 """
 
+import asyncio
 import json
 import logging
 import time
@@ -396,5 +398,52 @@ class BuilderPipeline:
         if isinstance(self.scorer, AdaptiveIdeaScorer):
             return self.scorer.get_scoring_insights()
         return {'adaptive_scoring': False}
+
+    # ──────────────────────────────────────────────
+    # Async Pipeline Methods (for Symphony)
+    # ──────────────────────────────────────────────
+
+    async def run_build_pipeline_async(self, idea: Dict, project_path: Path,
+                                       resume: bool = False) -> Dict:
+        """Async version of run_build_pipeline for Symphony orchestration
+
+        This method provides the same functionality as run_build_pipeline but
+        can be used in async contexts for parallel task execution.
+
+        Args:
+            idea: 프로젝트 아이디어
+            project_path: 프로젝트 경로
+            resume: 실패한 빌드 재개 여부
+
+        Returns:
+            빌드 결과
+        """
+        # Run the synchronous pipeline in a thread pool
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: self.run_build_pipeline(idea, project_path, resume)
+        )
+        return result
+
+    async def run_discovery_pipeline_async(self, resume: bool = False) -> Dict:
+        """Async version of run_discovery_pipeline for Symphony orchestration
+
+        This method provides the same functionality as run_discovery_pipeline but
+        can be used in async contexts for parallel task execution.
+
+        Args:
+            resume: 실패한 파이프라인 재개 여부
+
+        Returns:
+            파이프라인 실행 결과
+        """
+        # Run the synchronous pipeline in a thread pool
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: self.run_discovery_pipeline(resume)
+        )
+        return result
 
 
