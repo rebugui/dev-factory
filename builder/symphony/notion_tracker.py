@@ -45,7 +45,7 @@ class NotionTrackerAdapter:
 
     # Terminal reason to Notion status mapping
     TERMINAL_TO_NOTION_STATUS = {
-        TerminalReason.SUCCEEDED: "완료",
+        TerminalReason.SUCCEEDED: "배포 완료",
         TerminalReason.FAILED: "실패",
         TerminalReason.TIMED_OUT: "실패",
         TerminalReason.STALLED: "실패",
