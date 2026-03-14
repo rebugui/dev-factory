@@ -43,12 +43,14 @@ class ChatDevGLMClient:
         if not self.api_key:
             raise ValueError("GLM API 키가 필요합니다. BUILDER_GLM_API_KEY 또는 GLM_API_KEY 환경 변수를 설정하세요.")
     
-    def chat(self, messages: List[Dict], temperature: float = 0.7) -> str:
-        """GLM API 호출
+    def chat(self, messages: List[Dict], temperature: float = 0.7, max_retries: int = 10, initial_delay: int = 5) -> str:
+        """GLM API 호출 (자동 재시도 포함)
         
         Args:
             messages: 대화 메시지 리스트
             temperature: 생성 다양성 (0.0-1.0)
+            max_retries: 최대 재시도 횟수 (기본 10회)
+            initial_delay: 초기 대기 시간 (초, 기본 5초)
             
         Returns:
             생성된 응답
@@ -65,24 +67,47 @@ class ChatDevGLMClient:
             'max_tokens': 4000
         }
         
-        try:
-            response = requests.post(
-                f'{self.base_url}/chat/completions',
-                headers=headers,
-                json=payload,
-                timeout=self.timeout
-            )
-            response.raise_for_status()
-            
-            data = response.json()
-            return data['choices'][0]['message']['content']
-            
-        except requests.exceptions.Timeout:
-            logger.error("GLM API timeout")
-            raise
-        except requests.exceptions.RequestException as e:
-            logger.error(f"GLM API error: {e}")
-            raise
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    f'{self.base_url}/chat/completions',
+                    headers=headers,
+                    json=payload,
+                    timeout=self.timeout
+                )
+                response.raise_for_status()
+                
+                data = response.json()
+                return data['choices'][0]['message']['content']
+                
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 429:
+                    # Rate limit - 재시도
+                    if attempt < max_retries - 1:
+                        # 지수 백오프하며 대기 시간 증가
+                        delay = initial_delay * (2 ** attempt)
+                        logger.warning(f"Rate limit hit (attempt {attempt + 1}/{max_retries}), waiting {delay}s...")
+                        time.sleep(delay)
+                    else:
+                        logger.error(f"Rate limit persists after {max_retries} attempts")
+                        raise
+                else:
+                    # 다른 HTTP 에러는 즉시 실패
+                    logger.error(f"GLM API HTTP error: {e}")
+                    raise
+            except requests.exceptions.Timeout:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Timeout (attempt {attempt + 1}/{max_retries}), retrying...")
+                    time.sleep(2)
+                else:
+                    logger.error("GLM API timeout after retries")
+                    raise
+            except requests.exceptions.RequestException as e:
+                logger.error(f"GLM API error: {e}")
+                raise
+        
+        # 모든 재시도 실패
+        raise Exception(f"Failed after {max_retries} retries")
     
     # ──────────────────────────────────────────────
     # 에이전트 역할
