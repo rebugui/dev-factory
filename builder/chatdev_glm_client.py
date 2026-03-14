@@ -27,18 +27,23 @@ class ChatDevGLMClient:
     7. CTO Final - 최종 검증
     """
     
-    def __init__(self, api_key: str = None, base_url: str = None, model: str = "glm-4-plus"):
+    def __init__(self, api_key: str = None, base_url: str = None, model: str = "glm-4-plus",
+                 call_delay: int = 5, single_agent_mode: bool = False):
         """초기화
         
         Args:
             api_key: GLM API 키 (없으면 환경 변수에서 가져옴)
             base_url: GLM API URL
             model: 사용할 모델 (glm-4-plus 또는 glm-5)
+            call_delay: API 호출 간 대기 시간 (초, 기본 5초)
+            single_agent_mode: 단일 에이전트 모드 (기본 False - 멀티 에이전트)
         """
         self.api_key = api_key or os.getenv('BUILDER_GLM_API_KEY') or os.getenv('GLM_API_KEY')
         self.base_url = base_url or "https://api.z.ai/api/coding/paas/v4"
         self.model = model
         self.timeout = 60
+        self.call_delay = call_delay
+        self.single_agent_mode = single_agent_mode
         
         if not self.api_key:
             raise ValueError("GLM API 키가 필요합니다. BUILDER_GLM_API_KEY 또는 GLM_API_KEY 환경 변수를 설정하세요.")
@@ -109,9 +114,9 @@ class ChatDevGLMClient:
         # 모든 재시도 실패
         raise Exception(f"Failed after {max_retries} retries")
     
-    # ──────────────────────────────────────────────
+    # ----------------------------------------------
     # 에이전트 역할
-    # ──────────────────────────────────────────────
+    # ----------------------------------------------
     
     def act_as_ceo(self, idea: Dict) -> Dict:
         """CEO: 요구사항 분석"""
@@ -252,9 +257,9 @@ JSON 형식으로 응답해주세요."""
         
         return code_files
     
-    # ──────────────────────────────────────────────
+    # ----------------------------------------------
     # 전체 개발 파이프라인
-    # ──────────────────────────────────────────────
+    # ----------------------------------------------
     
     def develop(self, idea: Dict) -> Dict[str, str]:
         """전체 개발 파이프라인 실행
@@ -291,9 +296,8 @@ JSON 형식으로 응답해주세요."""
         
         return code_files
     
-    # ──────────────────────────────────────────────
-    # 유틸리티
-    # ──────────────────────────────────────────────
+    # Utility methods
+    # ----------------------------------------------
     
     def _extract_files(self, response: str) -> Dict[str, str]:
         """응답에서 파일 내용 추출"""
@@ -348,22 +352,100 @@ JSON 형식으로 응답해주세요."""
         return files
 
 
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # 편의 함수
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
-def develop_project(idea: Dict, model: str = "glm-4-plus") -> Dict[str, str]:
+def develop_project(idea: Dict, model: str = "glm-4-plus", 
+                   call_delay: int = 5, single_agent_mode: bool = True) -> Dict[str, str]:
     """프로젝트 개발 (편의 함수)
     
     Args:
         idea: 프로젝트 아이디어
         model: 사용할 GLM 모델 (glm-4-plus 또는 glm-5)
+        call_delay: API 호출 간 대기 시간 (초, 기본 5초)
+        single_agent_mode: 단일 에이전트 모드 (기본 True - Rate limit 방지)
         
     Returns:
         생성된 파일들
     """
-    client = ChatDevGLMClient(model=model)
+    client = ChatDevGLMClient(model=model, call_delay=call_delay, single_agent_mode=single_agent_mode)
     return client.develop(idea)
+
+
+def save_project(files: Dict[str, str], output_dir: Path):
+    """생성된 파일 저장
+    
+    Args:
+        files: 파일 딕셔너리 (파일명: 내용)
+        output_dir: 출력 디렉토리
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    for filepath, content in files.items():
+        full_path = output_dir / filepath
+        full_path.parent.mkdir(parents=True, exist_ok=True)
+        full_path.write_text(content)
+        logger.info(f"Created: {filepath}")
+    
+    logger.info(f"✅ Saved {len(files)} files to {output_dir}")
+    
+    def _extract_files(self, response: str) -> Dict[str, str]:
+        """응답에서 파일 내용 추출"""
+        import re
+        
+        files = {}
+        
+        # 패턴 1: ```python\n# filename.py\ncode\n```
+        pattern1 = r'```(?:python|bash|text)\s*\n#?\s*([^\n]+\.py|\.txt|\.md)\s*\n(.*?)```'
+        matches1 = re.findall(pattern1, response, re.DOTALL)
+        
+        for filename, code in matches1:
+            filename = filename.strip().lstrip('# ')
+            # 경로 정리
+            if '/' not in filename:
+                if filename.endswith('_test.py') or filename.startswith('test_'):
+                    filename = f'tests/{filename}'
+                elif filename in ['README.md', 'requirements.txt']:
+                    pass
+                else:
+                    filename = f'src/{filename}'
+            
+            files[filename] = code.strip()
+        
+        # 패턴 2: **filename.py**\n```python\ncode\n```
+        if not files:
+            pattern2 = r'\*\*([^\*]+\.py|\.txt|\.md)\*\*\s*\n```(?:python|bash|text)?\s*\n(.*?)```'
+            matches2 = re.findall(pattern2, response, re.DOTALL)
+            
+            for filename, code in matches2:
+                filename = filename.strip()
+                if '/' not in filename:
+                    if 'test' in filename.lower():
+                        filename = f'tests/{filename}'
+                    elif filename in ['README.md', 'requirements.txt']:
+                        pass
+                    else:
+                        filename = f'src/{filename}'
+                
+                files[filename] = code.strip()
+        
+        # 파일이 없으면 기본 구조 생성
+        if not files:
+            logger.warning("Could not extract files from response, using basic structure")
+            files = {
+                'src/main.py': '# TODO: Implement main functionality\npass',
+                'tests/test_main.py': '# TODO: Add tests\npass',
+                'README.md': f'# {idea.get("title", "Project")}\n\nTODO: Add documentation',
+                'requirements.txt': '# TODO: Add dependencies'
+            }
+        
+        return files
+
+
+# ----------------------------------------------
+# 편의 함수
+# ----------------------------------------------
 
 
 def save_project(files: Dict[str, str], output_dir: Path):
