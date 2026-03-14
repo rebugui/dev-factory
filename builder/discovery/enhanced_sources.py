@@ -473,11 +473,26 @@ class EnhancedDiscoveryManager:
         ]
 
     def discover_all(self, max_ideas: int = 50) -> List[Dict]:
-        """모든 소스에서 아이디어 발굴"""
+        """모든 소스에서 아이디어 발굴 + GitHub 트렌드 분석"""
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         all_ideas = []
 
+        # 1. GitHub 트렌드 분석 실행
+        try:
+            from builder.discovery.github_trend_analyzer import analyze_github_trends
+            logger.info("Running GitHub Trend Analysis...")
+            trend_analysis = analyze_github_trends()
+            
+            # 트렌드 기반 아이디어 추가
+            trend_ideas = trend_analysis.get('ideas', [])
+            all_ideas.extend(trend_ideas)
+            logger.info(f"GitHub Trend Analysis: {len(trend_ideas)} ideas")
+            
+        except Exception as e:
+            logger.warning(f"GitHub Trend Analysis failed: {e}")
+
+        # 2. 기존 소스에서 병렬 발굴
         with ThreadPoolExecutor(max_workers=5) as executor:
             futures = {
                 executor.submit(source.discover): source.__class__.__name__
@@ -493,10 +508,10 @@ class EnhancedDiscoveryManager:
                 except Exception as e:
                     logger.warning("%s failed: %s", source_name, e)
 
-        # 중복 제거
+        # 3. 중복 제거
         unique_ideas = self._remove_duplicates(all_ideas)
 
-        # 점수 기반 정렬
+        # 4. 점수 기반 정렬
         scored_ideas = self._score_ideas(unique_ideas)
 
         return scored_ideas[:max_ideas]
