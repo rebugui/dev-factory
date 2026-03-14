@@ -40,11 +40,11 @@ def main():
     start_time = time.time()
 
     # 파이프라인 초기화 (새로운 기능들 활성화)
-    use_adaptive = config.features.get('adaptive_scoring', True) if hasattr(config, 'features') else True
+    use_adaptive = getattr(config.features, 'adaptive_scoring', True) if hasattr(config, 'features') else True
     pipeline = BuilderPipeline(config, use_adaptive_scoring=use_adaptive)
 
     # Discovery 실행 (재개 지원)
-    resume = config.features.get('checkpoint_resume', True) if hasattr(config, 'features') else False
+    resume = getattr(config.features, 'checkpoint_resume', True) if hasattr(config, 'features') else False
     result = pipeline.run_discovery_pipeline(resume=resume)
 
     elapsed = time.time() - start_time

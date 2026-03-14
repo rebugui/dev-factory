@@ -49,8 +49,8 @@ def main():
     logger.info(f"Found {len(projects)} project(s) to build")
 
     # Build Pipeline 초기화 (새로운 기능들 활성화)
-    use_adaptive = config.features.get('adaptive_scoring', True) if hasattr(config, 'features') else True
-    use_checkpoints = config.features.get('checkpoint_resume', True) if hasattr(config, 'features') else True
+    use_adaptive = getattr(config.features, 'adaptive_scoring', True) if hasattr(config, 'features') else True
+    use_checkpoints = getattr(config.features, 'checkpoint_resume', True) if hasattr(config, 'features') else True
     pipeline = BuilderPipeline(config, use_adaptive_scoring=use_adaptive)
 
     # 각 프로젝트 빌드
