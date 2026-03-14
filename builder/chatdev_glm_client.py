@@ -36,7 +36,7 @@ class ChatDevGLMClient:
             model: 사용할 모델 (glm-4-plus 또는 glm-5)
         """
         self.api_key = api_key or os.getenv('BUILDER_GLM_API_KEY') or os.getenv('GLM_API_KEY')
-        self.base_url = base_url or "https://open.bigmodel.cn/api/paas/v4"
+        self.base_url = base_url or "https://api.z.ai/api/coding/paas/v4"
         self.model = model
         self.timeout = 60
         
