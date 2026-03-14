@@ -461,7 +461,7 @@ class EnhancedDiscoveryManager:
         self.sources = [
             # 기존
             GitHubTrendingEnhancedSource(getattr(config, 'github', None) if config else None),
-#            CVEDatabaseSource(getattr(config, 'cve', None) if config else None),
+            CVEDatabaseSource(getattr(config, 'cve', None) if config else None),
             SecurityNewsSource(getattr(config, 'security_news', None) if config else None),
 
             # 새로운

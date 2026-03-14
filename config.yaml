@@ -23,11 +23,11 @@ discovery:
     max_results: 5
 
   cve:
-    enabled: true
+    enabled: false  # CVE 스캐너 주제 제외
     lookback_days: 7
     min_score: 7.0
     severity: "HIGH"           # "HIGH" | "CRITICAL"
-    max_results: 20
+    max_results: 0
 
   security_news:
     enabled: true
