@@ -222,8 +222,8 @@ JSON 형식으로 응답해주세요."""
         
         response = self.chat(messages, temperature=0.7)
         
-        # 파일 추출
-        files = self._extract_files(response)
+        # 파일 추출 (idea 전달)
+        files = self._extract_files(response, idea)
         
         return files
     
