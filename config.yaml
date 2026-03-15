@@ -46,10 +46,10 @@ correction:
 
 chatdev:
   glm_api_key: "${BUILDER_GLM_API_KEY}"
-  glm_base_url: "https://open.bigmodel.cn/api/paas/v4"
-  model: "glm-4-plus"
+  glm_base_url: "https://api.z.ai/api/coding/paas/v4"
+  model: "glm-5"
   timeout_seconds: 1800
-  max_retries: 3
+  max_retries: 10
 
 orchestration:
   simple_engine: "glm"        # GLM API
